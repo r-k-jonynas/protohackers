@@ -1,0 +1,13 @@
+# fly.toml file generated for smokest-test on 2022-11-03T00:33:30+08:00
+
+app = "smokest-test"
+
+[experimental]
+  cmd = "./smoke-test"
+
+[[services]]
+  internal_port = 6142
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = "6142"
