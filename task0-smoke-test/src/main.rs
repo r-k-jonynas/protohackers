@@ -1,53 +1,61 @@
-use tokio::io::{self};
-use tokio::net::TcpListener;
-use tokio::net::TcpStream;
+use std::error::Error;
+use std::io;
 
-async fn process(socket: TcpStream) {
-    let mut buf = [0; 1024];
-    loop {
-        match socket.try_read(&mut buf) {
-            Ok(0) => break,
-            Ok(n) => {
-                println!("read {} bytes", n);
-                let message = &buf[0..n];
-                // println!("message: {:?}", message);
-                let mut sending_counter = n;
-                while sending_counter > 0 {
-                    match socket.try_write(&message) {
-                        Ok(0) => break,
-                        Ok(n_sent) => {
-                            sending_counter -= n_sent;
-                            println!("sent back {} bytes", n);
-                        }
-                        Err(e) => {
-                            println!("error {:?}", e);
-                            break;
-                        }
-                    }
-                }
-                buf.iter_mut().for_each(|m| *m = 0)
-            }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                continue;
-            }
-            Err(e) => {
-                println!("error {:?}", e);
-            }
-        }
-    }
-    println!("somebody disconnected");
-}
+use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let listener = TcpListener::bind("0.0.0.0:6142").await?;
-
+    let addr = "0.0.0.0:6142";
+    let listener = TcpListener::bind(addr).await?;
+    println!("Listening on: {}", addr);
     loop {
         let (socket, _) = listener.accept().await?;
         println!("received connection");
         tokio::spawn(async move {
             // Copy data here
-            process(socket).await
+            let mut buf = [0; 1024];
+            loop {
+                match socket.readable().await {
+                    Ok(_) => {
+                        match socket.try_read(&mut buf) {
+                            Ok(0) => break,
+                            Ok(n) => {
+                                println!("read {} bytes", n);
+                                let message = &buf[0..n];
+                                // println!("message: {:?}", message);
+                                let mut sending_counter = n;
+                                while sending_counter > 0 {
+                                    match socket.try_write(&message) {
+                                        Ok(0) => return,
+                                        Ok(n_sent) => {
+                                            sending_counter -= n_sent;
+                                            println!("sent back {} bytes", n);
+                                        }
+                                        Err(e) => {
+                                            println!("error {:?}", e);
+                                            break;
+                                        }
+                                    }
+                                }
+                                buf.iter_mut().for_each(|m| *m = 0)
+                            }
+                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                continue;
+                            }
+                            Err(e) => {
+                                println!("error {:?}", e);
+                                break;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!("error {:?}", e);
+                        break;
+                    }
+                }
+            }
+            println!("somebody disconnected");
+            ()
         });
     }
 }
