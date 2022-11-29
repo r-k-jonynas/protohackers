@@ -1,0 +1,13 @@
+# fly.toml file generated for task1-prime-time on 2022-11-29T21:16:59+08:00
+
+app = "task1-prime-time"
+
+[experimental]
+  cmd = "./task1-prime-time"
+
+[[services]]
+  internal_port = 6142
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = "6142"
