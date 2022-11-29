@@ -1,6 +1,7 @@
+use clap::Parser;
 use primes;
-use std::io;
 use serde_json::{json, Value};
+use std::io;
 
 use tokio::{
     io::AsyncWriteExt,
@@ -105,10 +106,18 @@ async fn process(mut socket: TcpStream) {
     println!("somebody disconnected");
 }
 
+/// Search for a pattern in a file and display the lines that contain it.
+#[derive(Parser)]
+struct Cli {
+    #[arg(short, long, default_value_t = false)]
+    debug: bool,
+}
+
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let debug = true;
-    let ip = match debug {
+    let args = Cli::parse();
+    println!("{:?}", args.debug);
+    let ip = match args.debug {
         true => "127.0.0.1",
         false => "0.0.0.0",
     };
