@@ -17,12 +17,12 @@ fn get_malformed_response() -> ResponseWrapped {
     ResponseWrapped::Malformed(json!({"method":"isPrime","prime":1}))
 }
 
-fn get_response_for_number(n: u64) -> ResponseWrapped {
-    let is_prime = primes::is_prime(n);
-    match is_prime {
-        true => ResponseWrapped::Conforming(json!({"method":"isPrime","prime": is_prime})),
-        false => ResponseWrapped::Malformed(json!({"method":"isPrime","prime": is_prime})),
-    }
+fn get_response_for_number(n: i64) -> ResponseWrapped {
+    let is_prime = match n > 0 {
+        true => primes::is_prime(n.abs() as u64),
+        false => false,
+    };
+    ResponseWrapped::Conforming(json!({"method":"isPrime","prime": is_prime}))
 }
 
 fn handle_response(vec: &Vec<u8>) -> ResponseWrapped {
@@ -34,7 +34,7 @@ fn handle_response(vec: &Vec<u8>) -> ResponseWrapped {
     match (json.get("method"), json.get("number")) {
         (Some(method), Some(number)) => match (method, number) {
             (Value::String(ref method), Value::Number(ref number)) => {
-                match (method.as_str(), number.as_u64()) {
+                match (method.as_str(), number.as_i64()) {
                     ("isPrime", Some(n)) => {
                         println!("Received number {:?}", n);
                         return get_response_for_number(n);
