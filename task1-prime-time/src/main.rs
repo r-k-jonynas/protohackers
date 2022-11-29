@@ -79,18 +79,20 @@ async fn process(mut socket: TcpStream) {
             true => match buf[n - 1] {
                 10 => {
                     println!("received \\n character.");
-                    // let full = std::str::from_utf8(&vec).unwrap();
+                    println!("Got message {:?}", std::str::from_utf8(&vec).unwrap());
                     // HANDLE
                     let response: ResponseWrapped = handle_response(&vec);
                     socket.writable().await.unwrap();
                     match response {
                         ResponseWrapped::Conforming(resp) => {
                             let str_of_json = serde_json::to_string(&resp).unwrap();
+                            println!("Sending out this response: {:?}", str_of_json);
                             socket.write_all(str_of_json.as_bytes()).await.unwrap();
                             vec = Vec::<u8>::new();
                         }
                         ResponseWrapped::Malformed(resp) => {
                             let str_of_json = serde_json::to_string(&resp).unwrap();
+                            println!("Sending out this response: {:?}", str_of_json);
                             socket.write_all(str_of_json.as_bytes()).await.unwrap();
                             break;
                         }
