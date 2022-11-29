@@ -1,5 +1,4 @@
 use clap::Parser;
-use primes;
 use serde_json::{json, Value};
 use std::io;
 
@@ -19,14 +18,14 @@ fn get_malformed_response() -> ResponseWrapped {
 
 fn get_response_for_number(n: i64) -> ResponseWrapped {
     let is_prime = match n > 0 {
-        true => primes::is_prime(n.abs() as u64),
+        true => primes::is_prime(n.unsigned_abs()),
         false => false,
     };
     ResponseWrapped::Conforming(json!({"method":"isPrime","prime": is_prime}))
 }
 
-fn handle_response(vec: &Vec<u8>) -> ResponseWrapped {
-    let json: serde_json::value::Value = match serde_json::from_slice(&vec) {
+fn handle_response(vec: &[u8]) -> ResponseWrapped {
+    let json: serde_json::value::Value = match serde_json::from_slice(vec) {
         Ok(json) => json,
         Err(_) => return get_malformed_response(),
     };
@@ -37,14 +36,14 @@ fn handle_response(vec: &Vec<u8>) -> ResponseWrapped {
                 match (method.as_str(), number.as_i64()) {
                     ("isPrime", Some(n)) => {
                         println!("Received number {:?}", n);
-                        return get_response_for_number(n);
+                        get_response_for_number(n)
                     }
-                    (_, _) => return get_malformed_response(),
+                    (_, _) => get_malformed_response(),
                 }
             }
-            (_, _) => return get_malformed_response(),
+            (_, _) => get_malformed_response(),
         },
-        (_, _) => return get_malformed_response(),
+        (_, _) => get_malformed_response(),
     }
 }
 
@@ -55,7 +54,7 @@ async fn process(mut socket: TcpStream) {
     loop {
         socket.readable().await.unwrap();
         let n = match socket.try_read(&mut buf) {
-            Ok(0) => return (),
+            Ok(0) => return,
             Ok(n) => {
                 _r_counter += n;
                 println!("read {} bytes", n);
@@ -66,12 +65,12 @@ async fn process(mut socket: TcpStream) {
             }
             Err(e) => {
                 println!("error {:?}", e);
-                return ();
+                return;
             }
         };
         // Collect sent bytes
-        for i in 0..n {
-            vec.push(buf[i]);
+        for byte in buf.iter().take(n) {
+            vec.push(*byte);
         }
         println!("message: {:?}", &buf[0..n]);
         match n > 1 {
