@@ -78,24 +78,31 @@ async fn process(mut socket: TcpStream) {
             true => match buf[n - 1] {
                 10 => {
                     println!("received \\n character.");
-                    println!("Got message {:?}", std::str::from_utf8(&vec).unwrap());
-                    // HANDLE
-                    let response: ResponseWrapped = handle_response(&vec);
-                    socket.writable().await.unwrap();
-                    match response {
-                        ResponseWrapped::Conforming(resp) => {
-                            let str_of_json = serde_json::to_string(&resp).unwrap();
-                            println!("Sending out this response: {:?}", str_of_json);
-                            socket.write_all(str_of_json.as_bytes()).await.unwrap();
-                            vec = Vec::<u8>::new();
-                        }
-                        ResponseWrapped::Malformed(resp) => {
-                            let str_of_json = serde_json::to_string(&resp).unwrap();
-                            println!("Sending out this response: {:?}", str_of_json);
-                            socket.write_all(str_of_json.as_bytes()).await.unwrap();
-                            break;
+                    for message in vec
+                        .split(|n| *n == 10u8)
+                        .filter(|message| (*message).len() > 1)
+                    {
+                        println!("Got message {:?}", std::str::from_utf8(&message).unwrap());
+                        // HANDLE
+                        let response: ResponseWrapped = handle_response(&message);
+                        socket.writable().await.unwrap();
+                        match response {
+                            ResponseWrapped::Conforming(resp) => {
+                                let mut str_of_json = serde_json::to_string(&resp).unwrap();
+                                str_of_json.push_str("\n");
+                                println!("Sending out this response: {:?}", str_of_json);
+                                socket.write_all(str_of_json.as_bytes()).await.unwrap();
+                            }
+                            ResponseWrapped::Malformed(resp) => {
+                                let mut str_of_json = serde_json::to_string(&resp).unwrap();
+                                str_of_json.push_str("\n");
+                                println!("Sending out this response: {:?}", str_of_json);
+                                socket.write_all(str_of_json.as_bytes()).await.unwrap();
+                                return;
+                            }
                         }
                     }
+                    vec = Vec::<u8>::new();
                 }
                 _ => {
                     println!("not yet full");
@@ -104,7 +111,6 @@ async fn process(mut socket: TcpStream) {
             },
         }
     }
-    println!("somebody disconnected");
 }
 
 /// Search for a pattern in a file and display the lines that contain it.
@@ -129,6 +135,9 @@ async fn main() -> io::Result<()> {
     loop {
         let (socket, _) = listener.accept().await?;
         println!("received connection");
-        tokio::spawn(async move { process(socket).await });
+        tokio::spawn(async move {
+            process(socket).await;
+            println!("somebody disconnected");
+        });
     }
 }
